@@ -1,7 +1,7 @@
 # Griot & Grits - Hackathon Toolkit
 # Makefile for simplified deployment commands
 
-.PHONY: help setup-local setup-openshift deploy-services deploy-code sync watch clean status
+.PHONY: help setup-local setup-openshift deploy-services deploy-code sync watch clean status test-e2e test-e2e-setup
 
 # Default target
 .DEFAULT_GOAL := help
@@ -301,6 +301,32 @@ delete-whisper: check-oc ## Delete Whisper ASR service (auto-detects namespace o
 		exit 1; \
 	fi
 	@./infra/whisper/deploy.sh --namespace $(NAMESPACE) --delete
+
+##@ Testing
+
+test-e2e-setup: ## Setup E2E testing environment (first time only)
+	@echo "$(CYAN)Setting up E2E tests...$(NC)"
+	@cd tests/e2e && ./setup.sh
+	@echo "$(GREEN)✓ E2E tests ready$(NC)"
+
+test-e2e: ## Run E2E tests
+	@echo "$(CYAN)Running E2E tests...$(NC)"
+	@cd tests/e2e && npm test
+
+test-e2e-ui: ## Run E2E tests in UI mode (interactive)
+	@echo "$(CYAN)Starting E2E tests in UI mode...$(NC)"
+	@cd tests/e2e && npm run test:ui
+
+test-e2e-headed: ## Run E2E tests with visible browser
+	@echo "$(CYAN)Running E2E tests with browser visible...$(NC)"
+	@cd tests/e2e && npm run test:headed
+
+test-e2e-debug: ## Run E2E tests in debug mode
+	@echo "$(CYAN)Starting E2E tests in debug mode...$(NC)"
+	@cd tests/e2e && npm run test:debug
+
+test-e2e-report: ## View E2E test report
+	@cd tests/e2e && npm run test:report
 
 ##@ Utilities
 

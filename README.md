@@ -180,6 +180,25 @@ rh-hackathon/
 └── env-templates/            # Environment file templates
 ```
 
+## Testing
+
+### E2E Tests
+
+End-to-end tests validate the complete user journey through the Admin UI.
+
+```bash
+# Setup (first time only)
+make test-e2e-setup
+
+# Run tests
+make test-e2e
+
+# Interactive UI mode
+make test-e2e-ui
+```
+
+See [tests/e2e/README.md](tests/e2e/README.md) for detailed documentation.
+
 ## Common Tasks
 
 ### Local Development

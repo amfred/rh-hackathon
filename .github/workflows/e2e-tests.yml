@@ -1,0 +1,117 @@
+name: E2E Tests - Frontend
+
+on:
+  pull_request:
+    branches:
+      - main
+      - develop
+    paths:
+      - 'tests/e2e/**'
+      - '.github/workflows/e2e-tests.yml'
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: 'Frontend URL to test against'
+        required: false
+        default: 'http://localhost:3000'
+
+jobs:
+  e2e-tests:
+    name: Run E2E Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium]
+        # Uncomment to test on multiple browsers
+        # browser: [chromium, firefox, webkit]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: tests/e2e/package-lock.json
+
+      - name: Install E2E test dependencies
+        working-directory: tests/e2e
+        run: npm ci
+
+      - name: Install Playwright browsers
+        working-directory: tests/e2e
+        run: npx playwright install --with-deps ${{ matrix.browser }}
+
+      - name: Setup test environment
+        run: |
+          # Start backend and frontend services for testing
+          # This assumes you have docker-compose or similar setup
+          # Adjust based on your actual setup
+          
+          # Option 1: Use existing services (if available)
+          # echo "Using existing services at ${{ github.event.inputs.base_url || 'http://localhost:3000' }}"
+          
+          # Option 2: Start services via docker-compose
+          # docker-compose -f docker-compose.test.yml up -d
+          
+          # Option 3: Start services via scripts
+          # make start-services
+          
+          echo "Services should be running..."
+
+      - name: Wait for services to be ready
+        run: |
+          # Wait for frontend to be ready
+          timeout 120 bash -c 'until curl -f http://localhost:3000 > /dev/null 2>&1; do sleep 2; done' || echo "Frontend not ready"
+          
+          # Wait for backend to be ready
+          timeout 120 bash -c 'until curl -f http://localhost:8000/health > /dev/null 2>&1; do sleep 2; done' || echo "Backend not ready"
+
+      - name: Run E2E tests
+        working-directory: tests/e2e
+        env:
+          BASE_URL: ${{ github.event.inputs.base_url || 'http://localhost:3000' }}
+          API_URL: http://localhost:8000
+          CI: true
+        run: npm test
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-${{ matrix.browser }}
+          path: tests/e2e/playwright-report/
+          retention-days: 30
+
+      - name: Upload test artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-${{ matrix.browser }}
+          path: tests/e2e/test-results/
+          retention-days: 30
+
+      - name: Comment PR with results
+        if: github.event_name == 'pull_request' && failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '❌ E2E tests failed. Please check the test results in the Actions tab.'
+            })
+
+      - name: Stop services
+        if: always()
+        run: |
+          # Clean up services
+          # docker-compose -f docker-compose.test.yml down || true
+          # make stop-services || true
+          echo "Cleanup complete"
